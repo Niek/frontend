@@ -22,7 +22,7 @@ jobs:
           version=$(date --utc '+%Y%m%d%H%M%S')
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - uses: release-drafter/release-drafter@3a7fb5c85b80b1dda66e1ccb94009adbbd32fce3 # v7.0.0
+      - uses: release-drafter/release-drafter@693d20e7c1ce1a81d3a41962f85914253b518449 # v7.3.1
         with:
           tag: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
