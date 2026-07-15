@@ -10,7 +10,7 @@ import {
   mdiInformation,
   mdiNewBox,
 } from "@mdi/js";
-import type { CSSResultGroup, TemplateResult } from "lit";
+import type { CSSResultGroup, PropertyValues, TemplateResult } from "lit";
 import { LitElement, html, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators";
 import memoize from "memoize-one";
@@ -63,6 +63,7 @@ const defaultKeyData = {
 };
 
 const STATUS_ORDER = ["pending-restart", "pending-upgrade", "installed", "new", "default"];
+const BRANDS_TOKEN_REFRESH_INTERVAL = 30 * 60 * 1000;
 
 const TABS: PageNavigation[] = [
   {
@@ -113,6 +114,28 @@ export class HacsDashboard extends LitElement {
 
   @state()
   private _overflowMenuRepository?: RepositoryBase;
+
+  @state()
+  private _brandsAccessToken?: string;
+
+  private _brandsTokenRefreshInterval?: number;
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    if (this.hasUpdated) {
+      this._startBrandsTokenRefresh();
+    }
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._stopBrandsTokenRefresh();
+  }
+
+  protected firstUpdated(changedProperties: PropertyValues): void {
+    super.firstUpdated(changedProperties);
+    this._startBrandsTokenRefresh();
+  }
 
   protected render = (): TemplateResult | void => {
     const repositories = this._filterRepositories(
@@ -328,17 +351,19 @@ export class HacsDashboard extends LitElement {
                   style="height: 32px; width: 32px"
                   slot="item-icon"
                   alt=""
-                  src=${repository.domain
+                  src=${repository.domain && this._brandsAccessToken
                     ? `/api/hacs/repository/${encodeURIComponent(repository.id)}/${
                         this.hass.themes?.darkMode ? "dark_icon" : "icon"
-                      }.png`
+                      }.png?token=${encodeURIComponent(this._brandsAccessToken)}`
                     : brandsUrl({
-                        domain: "invalid",
+                        domain: repository.domain || "invalid",
                         type: "icon",
                         useFallback: true,
                         darkOptimized: this.hass.themes?.darkMode,
                       })}
                   referrerpolicy="no-referrer"
+                  @error=${(event: Event) =>
+                    this._handleRepositoryIconError(event, repository.domain)}
                 />
               `
             : html`
@@ -584,6 +609,46 @@ export class HacsDashboard extends LitElement {
 
   private _handleClearFilter() {
     this._activeFilters = undefined;
+  }
+
+  private _startBrandsTokenRefresh(): void {
+    this._stopBrandsTokenRefresh();
+    void this._fetchBrandsAccessToken();
+    this._brandsTokenRefreshInterval = window.setInterval(
+      () => void this._fetchBrandsAccessToken(),
+      BRANDS_TOKEN_REFRESH_INTERVAL,
+    );
+  }
+
+  private _stopBrandsTokenRefresh(): void {
+    if (this._brandsTokenRefreshInterval !== undefined) {
+      window.clearInterval(this._brandsTokenRefreshInterval);
+      this._brandsTokenRefreshInterval = undefined;
+    }
+  }
+
+  private async _fetchBrandsAccessToken(): Promise<void> {
+    try {
+      const { token } = await this.hass.callWS<{ token: string }>({
+        type: "brands/access_token",
+      });
+      this._brandsAccessToken = token;
+    } catch {
+      this._brandsAccessToken = undefined;
+    }
+  }
+
+  private _handleRepositoryIconError(event: Event, domain?: string): void {
+    const image = event.currentTarget as HTMLImageElement;
+    const fallback = brandsUrl({
+      domain: domain || "invalid",
+      type: "icon",
+      useFallback: true,
+      darkOptimized: this.hass.themes?.darkMode,
+    });
+    if (image.src !== fallback) {
+      image.src = fallback;
+    }
   }
 
   static get styles(): CSSResultGroup {
