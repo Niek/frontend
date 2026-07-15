@@ -327,8 +327,9 @@ export class HacsDashboard extends LitElement {
                 <img
                   style="height: 32px; width: 32px"
                   slot="item-icon"
+                  alt=""
                   src=${repository.domain
-                    ? `/api/hacs/repository/${repository.id}/${
+                    ? `/api/hacs/repository/${encodeURIComponent(repository.id)}/${
                         this.hass.themes?.darkMode ? "dark_icon" : "icon"
                       }.png`
                     : brandsUrl({
