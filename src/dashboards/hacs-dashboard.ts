@@ -327,12 +327,16 @@ export class HacsDashboard extends LitElement {
                 <img
                   style="height: 32px; width: 32px"
                   slot="item-icon"
-                  src=${brandsUrl({
-                    domain: repository.domain || "invalid",
-                    type: "icon",
-                    useFallback: true,
-                    darkOptimized: this.hass.themes?.darkMode,
-                  })}
+                  src=${repository.domain
+                    ? `/api/hacs/repository/${repository.id}/${
+                        this.hass.themes?.darkMode ? "dark_icon" : "icon"
+                      }.png`
+                    : brandsUrl({
+                        domain: "invalid",
+                        type: "icon",
+                        useFallback: true,
+                        darkOptimized: this.hass.themes?.darkMode,
+                      })}
                   referrerpolicy="no-referrer"
                 />
               `
