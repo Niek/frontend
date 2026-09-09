@@ -147,7 +147,12 @@ export class HacsDashboard extends LitElement {
 
     return html`<hass-tabs-subpage-data-table
         .tabs=${TABS}
-        .columns=${this._columns(this.hacs.localize, this.narrow)}
+        .columns=${this._columns(
+          this.hacs.localize,
+          this.narrow,
+          this._brandsAccessToken,
+          this.hass.themes?.darkMode,
+        )}
         .data=${repositories}
         .hass=${this.hass}
         ?iswide=${this.isWide}
@@ -336,6 +341,8 @@ export class HacsDashboard extends LitElement {
     (
       localizeFunc: LocalizeFunc<HacsLocalizeKeys>,
       narrow: boolean,
+      brandsAccessToken: string | undefined,
+      darkMode: boolean | undefined,
     ): DataTableColumnContainer<RepositoryBase> => ({
       icon: {
         title: "",
@@ -351,15 +358,15 @@ export class HacsDashboard extends LitElement {
                   style="height: 32px; width: 32px"
                   slot="item-icon"
                   alt=""
-                  src=${repository.domain && this._brandsAccessToken
+                  src=${repository.domain && brandsAccessToken
                     ? `/api/hacs/repository/${encodeURIComponent(repository.id)}/${
-                        this.hass.themes?.darkMode ? "dark_icon" : "icon"
-                      }.png?token=${encodeURIComponent(this._brandsAccessToken)}`
+                        darkMode ? "dark_icon" : "icon"
+                      }.png?token=${encodeURIComponent(brandsAccessToken)}`
                     : brandsUrl({
                         domain: repository.domain || "invalid",
                         type: "icon",
                         useFallback: true,
-                        darkOptimized: this.hass.themes?.darkMode,
+                        darkOptimized: darkMode,
                       })}
                   referrerpolicy="no-referrer"
                   @error=${(event: Event) =>
@@ -634,11 +641,12 @@ export class HacsDashboard extends LitElement {
       });
       this._brandsAccessToken = token;
     } catch {
-      this._brandsAccessToken = undefined;
+      // Keep the previous token; it usually remains valid across a transient
+      // failure, and an expired one falls back via the image error handler.
     }
   }
 
-  private _handleRepositoryIconError(event: Event, domain?: string): void {
+  private _handleRepositoryIconError(event: Event, domain?: string | null): void {
     const image = event.currentTarget as HTMLImageElement;
     const fallback = brandsUrl({
       domain: domain || "invalid",
